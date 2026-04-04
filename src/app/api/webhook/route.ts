@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { getAIResponse } from "@/lib/ai";
 
+// ─── Webhook Verification (unchanged) ───
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const mode = searchParams.get("hub.mode");
@@ -16,36 +17,13 @@ export async function GET(request: NextRequest) {
   return new Response("Forbidden", { status: 403 });
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-
-  // Only process whatsapp_business_account events
-  if (body.object !== "whatsapp_business_account") {
-    return Response.json({ status: "ignored" });
-  }
-
-  const entry = body.entry?.[0];
-  const changes = entry?.changes?.[0];
-  const value = changes?.value;
-
-  // Only process actual messages (not status updates)
-  if (!value?.messages?.[0]) {
-    return Response.json({ status: "no_message" });
-  }
-
-  const message = value.messages[0];
-  const contact = value.contacts?.[0];
-
-  // Only handle text messages
-  if (message.type !== "text") {
-    return Response.json({ status: "non_text" });
-  }
-
-  const phone = message.from;
-  const text = message.text.body;
-  const name = contact?.profile?.name || null;
-  const whatsappMsgId = message.id;
-
+// ─── The actual heavy lifting (runs AFTER 200 is sent) ───
+async function processMessage(
+  phone: string,
+  text: string,
+  name: string | null,
+  whatsappMsgId: string
+) {
   try {
     // Find or create conversation
     let { data: conversation } = await supabase
@@ -69,7 +47,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!conversation) {
-      return Response.json({ error: "Failed to create conversation" }, { status: 500 });
+      console.error("Failed to create conversation for", phone);
+      return;
     }
 
     // Store user message (ignore duplicates)
@@ -81,8 +60,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (insertError?.code === "23505") {
-      // Duplicate message, ignore
-      return Response.json({ status: "duplicate" });
+      // Duplicate message — already processed
+      return;
     }
 
     // Update conversation timestamp
@@ -91,12 +70,12 @@ export async function POST(request: NextRequest) {
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversation.id);
 
-    // If mode is 'human', don't auto-reply
+    // If human mode, just store — don't auto-reply
     if (conversation.mode === "human") {
-      return Response.json({ status: "stored_for_human" });
+      return;
     }
 
-    // Fetch conversation history (last 20 messages for context)
+    // Fetch conversation history
     const { data: history } = await supabase
       .from("messages")
       .select("role, content")
@@ -112,25 +91,69 @@ export async function POST(request: NextRequest) {
       }))
     );
 
-    // Send response via WhatsApp
-    await sendWhatsAppMessage(phone, aiResponse);
+    // Send via WhatsApp
+    const waResponse = await sendWhatsAppMessage(phone, aiResponse);
 
-    // Store AI response
+    // Check if WhatsApp send actually worked
+    if (waResponse?.error) {
+      console.error("WhatsApp send failed:", waResponse.error);
+      return;
+    }
+
+    // Store AI reply
     await supabase.from("messages").insert({
       conversation_id: conversation.id,
       role: "assistant",
       content: aiResponse,
     });
 
-    // Update conversation timestamp again
+    // Update timestamp
     await supabase
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversation.id);
 
-    return Response.json({ status: "replied" });
   } catch (error) {
-    console.error("Webhook error:", error);
-    return Response.json({ status: "error" }, { status: 500 });
+    console.error("Background processing error:", error);
   }
+}
+
+// ─── Webhook Handler (returns 200 INSTANTLY) ───
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+
+  // Ignore non-WhatsApp events
+  if (body.object !== "whatsapp_business_account") {
+    return Response.json({ status: "ignored" });
+  }
+
+  const entry = body.entry?.[0];
+  const changes = entry?.changes?.[0];
+  const value = changes?.value;
+
+  // Ignore status updates (delivered, read receipts, etc.)
+  if (!value?.messages?.[0]) {
+    return Response.json({ status: "no_message" });
+  }
+
+  const message = value.messages[0];
+  const contact = value.contacts?.[0];
+
+  // Only handle text for now
+  if (message.type !== "text") {
+    return Response.json({ status: "non_text" });
+  }
+
+  const phone = message.from;
+  const text = message.text.body;
+  const name = contact?.profile?.name || null;
+  const whatsappMsgId = message.id;
+
+  // ✅ THE KEY LINE — fire background task, don't await it
+  // waitUntil keeps the serverless function alive after response is sent
+  const { waitUntil } = await import("next/server");
+  waitUntil(processMessage(phone, text, name, whatsappMsgId));
+
+  // ✅ Return 200 to Meta IMMEDIATELY (< 100ms)
+  return Response.json({ status: "received" });
 }
