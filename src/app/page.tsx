@@ -43,7 +43,6 @@ export default function Dashboard() {
     const data = await res.json();
     if (Array.isArray(data)) {
       setBusinesses(data);
-      // Auto-select first business if none selected
       if (!selectedBizId && data.length > 0) {
         setSelectedBizId(data[0].id);
       }
@@ -198,23 +197,23 @@ export default function Dashboard() {
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </div>
-           <div className="flex-1">
-  <div className="flex items-center justify-between">
-    <h1 className="text-sm font-semibold text-white leading-tight">
-      WhatsApp AI Agent
-    </h1>
-    <a
-      href="/admin"
-      className="text-[10px] px-2 py-1 rounded bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white/70 transition-colors"
-    >
-      Admin
-    </a>
-  </div>
-  <p className="text-xs text-white/40 leading-tight mt-0.5">
-    {conversations.length} conversation
-    {conversations.length !== 1 ? "s" : ""}
-  </p>
-</div> </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h1 className="text-sm font-semibold text-white leading-tight">
+                  WhatsApp AI Agent
+                </h1>
+                <a
+                  href="/admin"
+                  className="text-[10px] px-2 py-1 rounded bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white/70 transition-colors"
+                >
+                  Admin
+                </a>
+              </div>
+              <p className="text-xs text-white/40 leading-tight mt-0.5">
+                {conversations.length} conversation
+                {conversations.length !== 1 ? "s" : ""}
+              </p>
+            </div>
           </div>
         </div>
 
