@@ -32,9 +32,14 @@ export default function AdminPanel() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [businessDetails, setBusinessDetails] = useState<Record<string, BusinessForm>>({});
+  const [businessDetails, setBusinessDetails] = useState<
+    Record<string, BusinessForm>
+  >({});
 
   const authHeaders = useMemo(
     () => ({
@@ -58,7 +63,9 @@ export default function AdminPanel() {
   const fetchBusinessDetail = useCallback(
     async (id: string) => {
       if (businessDetails[id]) return;
-      const res = await fetch(`/api/businesses/${id}`, { headers: authHeaders });
+      const res = await fetch(`/api/businesses/${id}`, {
+        headers: authHeaders,
+      });
       if (res.ok) {
         const data = await res.json();
         setBusinessDetails((prev) => ({ ...prev, [id]: data }));
@@ -77,14 +84,21 @@ export default function AdminPanel() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name || !form.phone_number_id || !form.access_token || !form.system_prompt) {
+    if (
+      !form.name ||
+      !form.phone_number_id ||
+      !form.access_token ||
+      !form.system_prompt
+    ) {
       showToast("Please fill all required fields", "error");
       return;
     }
 
     setSaving(true);
 
-    const url = editingId ? `/api/businesses/${editingId}` : "/api/businesses";
+    const url = editingId
+      ? `/api/businesses/${editingId}`
+      : "/api/businesses";
     const method = editingId ? "PUT" : "POST";
 
     const res = await fetch(url, {
@@ -94,7 +108,10 @@ export default function AdminPanel() {
     });
 
     if (res.ok) {
-      showToast(editingId ? "Business updated" : "Business created", "success");
+      showToast(
+        editingId ? "Business updated" : "Business created",
+        "success"
+      );
       setForm(EMPTY_FORM);
       setEditingId(null);
       setShowForm(false);
@@ -109,7 +126,12 @@ export default function AdminPanel() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this business? All conversations and messages will be permanently lost.")) return;
+    if (
+      !confirm(
+        "Delete this business? All conversations and messages will be permanently lost."
+      )
+    )
+      return;
 
     setDeleting(id);
 
@@ -181,21 +203,36 @@ export default function AdminPanel() {
       )}
 
       {/* Header */}
-      <div className="border-b border-white/[0.06]" style={{ background: "#141414" }}>
+      <div
+        className="border-b border-white/[0.06]"
+        style={{ background: "#141414" }}
+      >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <a
               href="/"
               className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1] transition-colors"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </a>
             <div>
-              <h1 className="text-base font-semibold text-white">Admin Panel</h1>
+              <h1 className="text-base font-semibold text-white">
+                Admin Panel
+              </h1>
               <p className="text-xs text-white/40">
-                {businesses.length} business{businesses.length !== 1 ? "es" : ""}
+                {businesses.length} business
+                {businesses.length !== 1 ? "es" : ""}
               </p>
             </div>
           </div>
@@ -208,7 +245,16 @@ export default function AdminPanel() {
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium transition-colors"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
@@ -257,12 +303,15 @@ export default function AdminPanel() {
               {/* Phone Number ID */}
               <div className="space-y-1.5">
                 <label className="text-xs text-white/50 font-medium">
-                  WhatsApp Phone Number ID <span className="text-red-400">*</span>
+                  WhatsApp Phone Number ID{" "}
+                  <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={form.phone_number_id}
-                  onChange={(e) => handleChange("phone_number_id", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("phone_number_id", e.target.value)
+                  }
                   placeholder="1234567890"
                   className="w-full bg-white/[0.06] text-sm text-white/90 rounded-lg px-3 py-2.5 border border-white/[0.06] focus:outline-none focus:border-emerald-500/40 placeholder:text-white/20"
                 />
@@ -276,7 +325,9 @@ export default function AdminPanel() {
                 <input
                   type="password"
                   value={form.access_token}
-                  onChange={(e) => handleChange("access_token", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("access_token", e.target.value)
+                  }
                   placeholder="EAAK..."
                   className="w-full bg-white/[0.06] text-sm text-white/90 rounded-lg px-3 py-2.5 border border-white/[0.06] focus:outline-none focus:border-emerald-500/40 placeholder:text-white/20"
                 />
@@ -286,12 +337,16 @@ export default function AdminPanel() {
               <div className="space-y-1.5 md:col-span-2">
                 <label className="text-xs text-white/50 font-medium">
                   Webhook Verify Token{" "}
-                  <span className="text-white/30">(auto-generated if empty)</span>
+                  <span className="text-white/30">
+                    (auto-generated if empty)
+                  </span>
                 </label>
                 <input
                   type="text"
                   value={form.webhook_verify_token}
-                  onChange={(e) => handleChange("webhook_verify_token", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("webhook_verify_token", e.target.value)
+                  }
                   placeholder="any-random-string"
                   className="w-full bg-white/[0.06] text-sm text-white/90 rounded-lg px-3 py-2.5 border border-white/[0.06] focus:outline-none focus:border-emerald-500/40 placeholder:text-white/20"
                 />
@@ -304,7 +359,9 @@ export default function AdminPanel() {
                 </label>
                 <textarea
                   value={form.system_prompt}
-                  onChange={(e) => handleChange("system_prompt", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("system_prompt", e.target.value)
+                  }
                   rows={8}
                   placeholder={`You are the AI assistant for Dr. Roy Dental Clinic, Midnapore.\n\nHours: Mon-Sat 10am-8pm\nServices: cleaning, filling, root canal, extraction\nLanguages: Bangla, Hindi, English\n\nRules:\n- Never diagnose\n- For emergencies, tell patient to call +91-9876543210\n- Be warm and concise\n- Ask one question at a time`}
                   className="w-full bg-white/[0.06] text-sm text-white/90 rounded-lg px-3 py-2.5 border border-white/[0.06] focus:outline-none focus:border-emerald-500/40 placeholder:text-white/20 resize-y min-h-[120px]"
@@ -321,8 +378,8 @@ export default function AdminPanel() {
                 {saving
                   ? "Saving..."
                   : editingId
-                  ? "Update Business"
-                  : "Create Business"}
+                    ? "Update Business"
+                    : "Create Business"}
               </button>
               <button
                 type="button"
@@ -339,13 +396,24 @@ export default function AdminPanel() {
         {businesses.length === 0 && !showForm && (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-white/40">No businesses yet</p>
+              <p className="text-sm font-medium text-white/40">
+                No businesses yet
+              </p>
               <p className="text-xs text-white/20 mt-1">
                 Add your first client to get started
               </p>
@@ -373,7 +441,9 @@ export default function AdminPanel() {
                     {biz.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-medium text-white/90">{biz.name}</p>
+                    <p className="text-sm font-medium text-white/90">
+                      {biz.name}
+                    </p>
                     <p className="text-xs text-white/40 mt-0.5">
                       ID: {biz.phone_number_id} &middot; Added{" "}
                       {formatDate(biz.created_at)}
@@ -402,6 +472,29 @@ export default function AdminPanel() {
                     <p className="text-xs text-white/30 py-4">Loading...</p>
                   ) : (
                     <div className="space-y-4 mt-3">
+                      {/* Dashboard Link */}
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/[0.06] border border-emerald-500/10">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-emerald-400/60 mb-1">
+                            Doctor Dashboard Link
+                          </p>
+                          <p className="text-xs text-white/50 font-mono truncate">
+                            {window.location.origin}/dashboard/
+                            {detail.webhook_verify_token}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const url = `${window.location.origin}/dashboard/${detail.webhook_verify_token}`;
+                            navigator.clipboard.writeText(url);
+                            showToast("Dashboard link copied!", "success");
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-xs font-medium text-emerald-400 transition-colors flex-shrink-0"
+                        >
+                          Copy Link
+                        </button>
+                      </div>
+
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-white/30 mb-1">
                           System Prompt
