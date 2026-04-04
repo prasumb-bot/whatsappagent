@@ -4,6 +4,13 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import type { ConversationWithLastMessage, Message } from "@/lib/types";
 
+interface BusinessSummary {
+  id: string;
+  name: string;
+  phone_number_id: string;
+  created_at: string;
+}
+
 export default function Dashboard() {
   const supabase = useMemo(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,6 +19,8 @@ export default function Dashboard() {
     return createClient(url, key);
   }, []);
 
+  const [businesses, setBusinesses] = useState<BusinessSummary[]>([]);
+  const [selectedBizId, setSelectedBizId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationWithLastMessage[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -21,7 +30,6 @@ export default function Dashboard() {
 
   const selected = conversations.find((c) => c.id === selectedId);
 
-  // Auth headers — sent with every API call
   const authHeaders = useMemo(
     () => ({
       "Content-Type": "application/json",
@@ -30,11 +38,26 @@ export default function Dashboard() {
     []
   );
 
-  const fetchConversations = useCallback(async () => {
-    const res = await fetch("/api/conversations", { headers: authHeaders });
+  const fetchBusinesses = useCallback(async () => {
+    const res = await fetch("/api/businesses", { headers: authHeaders });
     const data = await res.json();
-    setConversations(data);
-  }, [authHeaders]);
+    if (Array.isArray(data)) {
+      setBusinesses(data);
+      // Auto-select first business if none selected
+      if (!selectedBizId && data.length > 0) {
+        setSelectedBizId(data[0].id);
+      }
+    }
+  }, [authHeaders, selectedBizId]);
+
+  const fetchConversations = useCallback(async () => {
+    const url = selectedBizId
+      ? `/api/conversations?business_id=${selectedBizId}`
+      : "/api/conversations";
+    const res = await fetch(url, { headers: authHeaders });
+    const data = await res.json();
+    if (Array.isArray(data)) setConversations(data);
+  }, [authHeaders, selectedBizId]);
 
   const fetchMessages = useCallback(
     async (convoId: string) => {
@@ -48,8 +71,14 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
+    fetchBusinesses();
+  }, [fetchBusinesses]);
+
+  useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+    setSelectedId(null);
+    setMessages([]);
+  }, [selectedBizId, fetchConversations]);
 
   useEffect(() => {
     if (selectedId) fetchMessages(selectedId);
@@ -134,6 +163,24 @@ export default function Dashboard() {
         className="w-[320px] flex flex-col border-r border-white/[0.06]"
         style={{ background: "#141414" }}
       >
+        {/* Business Selector */}
+        <div className="px-5 py-3 border-b border-white/[0.06]">
+          <select
+            value={selectedBizId || ""}
+            onChange={(e) => setSelectedBizId(e.target.value || null)}
+            className="w-full bg-white/[0.06] text-white/90 text-sm rounded-lg px-3 py-2 border border-white/[0.06] focus:outline-none focus:border-emerald-500/40"
+          >
+            <option value="" className="bg-[#141414]">
+              All Businesses
+            </option>
+            {businesses.map((biz) => (
+              <option key={biz.id} value={biz.id} className="bg-[#141414]">
+                {biz.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Sidebar Header */}
         <div className="px-5 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
@@ -198,7 +245,6 @@ export default function Dashboard() {
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-8 bg-emerald-500 rounded-r" />
                 )}
                 <div className="flex items-center gap-3">
-                  {/* Avatar */}
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center flex-shrink-0 text-white text-xs font-semibold">
                     {getInitials(convo.name, convo.phone)}
                   </div>
@@ -294,7 +340,9 @@ export default function Dashboard() {
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    selected.mode === "agent" ? "bg-emerald-400" : "bg-amber-400"
+                    selected.mode === "agent"
+                      ? "bg-emerald-400"
+                      : "bg-amber-400"
                   }`}
                 />
                 {selected.mode === "agent" ? "AI Mode" : "Human Mode"}
@@ -317,7 +365,9 @@ export default function Dashboard() {
                 return (
                   <div
                     key={msg.id}
-                    className={`flex ${isUser ? "justify-start" : "justify-end"}`}
+                    className={`flex ${
+                      isUser ? "justify-start" : "justify-end"
+                    }`}
                   >
                     <div
                       className={`flex flex-col ${
@@ -336,7 +386,9 @@ export default function Dashboard() {
                       {showTime && (
                         <p className="text-[10px] text-white/25 mt-1.5 px-1">
                           {!isUser && (
-                            <span className="text-emerald-500/60 mr-1">AI </span>
+                            <span className="text-emerald-500/60 mr-1">
+                              AI{" "}
+                            </span>
                           )}
                           {formatTime(msg.created_at)}
                         </p>
