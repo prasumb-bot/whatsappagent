@@ -93,3 +93,24 @@ alter publication supabase_realtime add table businesses;
 --   'You are a friendly AI assistant for Dr. Demo Clinic...',
 --   'your-verify-token'
 -- );
+-- 8. Appointments table
+create table if not exists appointments (
+  id uuid default gen_random_uuid() primary key,
+  business_id uuid references businesses(id) on delete cascade not null,
+  conversation_id uuid references conversations(id) on delete set null,
+  patient_name text not null,
+  patient_phone text not null,
+  appointment_date date not null,
+  appointment_time time not null,
+  reason text,
+  status text not null default 'confirmed' check (status in ('confirmed', 'cancelled', 'completed', 'no_show')),
+  notes text,
+  created_at timestamp with time zone default now()
+);
+
+create index if not exists idx_appointments_business on appointments(business_id);
+create index if not exists idx_appointments_date on appointments(business_id, appointment_date);
+create unique index if not exists idx_appointments_slot on appointments(business_id, appointment_date, appointment_time)
+  where status = 'confirmed';
+
+alter publication supabase_realtime add table appointments;
