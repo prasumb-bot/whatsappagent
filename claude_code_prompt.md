@@ -1,3 +1,6 @@
+
+
+```markdown
 # WhatsApp AI Agent — SaaS Platform
 
 ## What This Is
@@ -16,6 +19,10 @@ Dashboard (page.tsx) → Supabase Realtime → live message updates
   → Business selector dropdown (multi-tenant)
   → Agent/Human mode toggle per conversation
   → Manual message sending
+
+Admin Panel (/admin) → Full CRUD for businesses
+  → Create, edit, delete businesses via UI
+  → Each business gets its own AI persona, WhatsApp credentials, system prompt
 ```
 
 ## Tech Stack
@@ -34,9 +41,13 @@ src/
 │   ├── page.tsx                          # Dashboard UI (client component)
 │   ├── layout.tsx                        # Root layout
 │   ├── globals.css                       # Tailwind imports
+│   ├── admin/
+│   │   └── page.tsx                      # Admin panel (business CRUD)
 │   └── api/
 │       ├── webhook/route.ts              # Meta webhook (GET=verify, POST=receive messages)
-│       ├── businesses/route.ts           # GET=list businesses, POST=create business
+│       ├── businesses/
+│       │   ├── route.ts                  # GET=list businesses, POST=create business
+│       │   └── [id]/route.ts             # GET=detail, PUT=update, DELETE=remove
 │       └── conversations/
 │           ├── route.ts                  # GET=list conversations (with RPC, filterable by business_id)
 │           └── [id]/
@@ -139,12 +150,12 @@ NEXT_PUBLIC_APP_URL          — public URL
 - [x] Dashboard with business selector
 - [x] Realtime message updates
 - [x] Token-based auth on all API routes
-- [x] Business management API (CRUD)
+- [x] Business management API (full CRUD)
 - [x] Optimized conversation list (single RPC query)
+- [x] Clean .env.example (placeholder values only)
+- [x] Admin panel UI (/admin — create, edit, delete businesses)
 
 ## What Needs Building Next (Priority Order)
-- [ ] Clean .env.example (remove leaked credentials, use placeholders)
-- [ ] Delete src/lib/system-prompt.ts (dead code, replaced by DB-driven prompts)
 - [ ] Appointment booking system (extract date/time from AI, store in appointments table, integrate Cal.com or Google Calendar)
 - [ ] Fee reminder cron job (Vercel Cron → query due fees → send WhatsApp template messages via Gupshup/AiSensy)
 - [ ] Google Review collector (post-service trigger → send review request → follow-up if no review in 3 days)
@@ -153,14 +164,14 @@ NEXT_PUBLIC_APP_URL          — public URL
 - [ ] Typing indicator + read receipts (Meta mark_as_read API)
 - [ ] Conversation memory summarization (summarize older messages to stay within token limits)
 - [ ] Media message support (image/audio/document handling)
-- [ ] Business onboarding UI (form in dashboard to add new business without SQL)
 - [ ] Supabase Auth or NextAuth (replace token-based auth for production)
 - [ ] Analytics dashboard (messages/day, response time, AI vs human ratio per business)
 - [ ] Multi-language auto-detection (detect Bangla/Hindi/English, respond in same language)
 - [ ] Template message support (for outbound campaigns, requires Meta-approved templates)
 
 ## How to Add a New Business
-POST to `/api/businesses` with auth header:
+Option 1 — Use the Admin Panel at `/admin` (recommended)
+Option 2 — POST to `/api/businesses` with auth header:
 ```json
 {
   "name": "Dr. Roy Dental Clinic",
