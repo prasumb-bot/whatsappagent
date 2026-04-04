@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { bookAppointment, checkSlot } from "@/lib/appointments";
+import { bookAppointment, checkSlot, getAppointments } from "@/lib/appointments";
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -55,7 +55,8 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
           time: {
             type: "string",
-            description: "Time to check in HH:MM format (24h). Optional — if not provided, returns all available slots for the day.",
+            description:
+              "Time to check in HH:MM format (24h). Optional — if not provided, returns all available slots for the day.",
           },
         },
         required: ["date"],
@@ -91,7 +92,9 @@ export async function getAIResponse(
 
   // If no tool call, return the text response
   if (!choice?.message?.tool_calls?.length) {
-    return choice?.message?.content || "Sorry, I couldn't generate a response.";
+    return (
+      choice?.message?.content || "Sorry, I couldn't generate a response."
+    );
   }
 
   // Handle tool calls
@@ -111,17 +114,32 @@ export async function getAIResponse(
     });
     toolResult = result.message;
   } else if (toolCall.function.name === "check_availability") {
-    const slot = await checkSlot(
-      context!.businessId!,
-      args.date,
-      args.time ? args.time + ":00" : "00:00"
-    );
     if (args.time) {
+      // Specific time requested
+      const slot = await checkSlot(
+        context!.businessId!,
+        args.date,
+        args.time + ":00"
+      );
       toolResult = slot.available
         ? `The slot on ${args.date} at ${args.time} is available.`
         : `That slot is taken. Available times: ${slot.alternativeSlots?.join(", ") || "none"}`;
     } else {
-      toolResult = `Available slots on ${args.date}: ${slot.alternativeSlots?.join(", ") || "all slots open"}`;
+      // No time specified — list all open slots for the day
+      const booked = await getAppointments(context!.businessId!, args.date);
+      const bookedSet = new Set(
+        booked.map((a: { appointment_time: string }) => a.appointment_time)
+      );
+      const allSlots: string[] = [];
+      for (let h = 9; h < 19; h++) {
+        allSlots.push(`${h.toString().padStart(2, "0")}:00:00`);
+        allSlots.push(`${h.toString().padStart(2, "0")}:30:00`);
+      }
+      const open = allSlots.filter((s) => !bookedSet.has(s));
+      toolResult =
+        open.length > 0
+          ? `Available slots on ${args.date}: ${open.map((s) => s.slice(0, 5)).join(", ")}`
+          : `No slots available on ${args.date}.`;
     }
   } else {
     toolResult = "Unknown action.";
@@ -145,8 +163,5 @@ export async function getAIResponse(
     ],
   });
 
-  return (
-    followUp.choices[0]?.message?.content ||
-    toolResult
-  );
+  return followUp.choices[0]?.message?.content || toolResult;
 }
