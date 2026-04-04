@@ -30,3 +30,17 @@ export interface Message {
 export interface ConversationWithLastMessage extends Conversation {
   last_message: string | null;
 }
+
+export interface Appointment {
+  id: string;
+  business_id: string;
+  conversation_id: string | null;
+  patient_name: string;
+  patient_phone: string;
+  appointment_date: string;
+  appointment_time: string;
+  reason: string | null;
+  status: "confirmed" | "cancelled" | "completed" | "no_show";
+  notes: string | null;
+  created_at: string;
+}
