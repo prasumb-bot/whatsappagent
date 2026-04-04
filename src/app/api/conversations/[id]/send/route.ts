@@ -1,11 +1,14 @@
 import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { isAuthenticated, unauthorizedResponse } from "@/lib/auth";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAuthenticated(request)) return unauthorizedResponse();
+
   const { id } = await params;
   const body = await request.json();
   const { message } = body;
@@ -14,7 +17,6 @@ export async function POST(
     return Response.json({ error: "Message is required" }, { status: 400 });
   }
 
-  // Get conversation to find phone number
   const { data: conversation, error: convoError } = await supabase
     .from("conversations")
     .select("phone")
@@ -25,10 +27,8 @@ export async function POST(
     return Response.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  // Send via WhatsApp
   await sendWhatsAppMessage(conversation.phone, message);
 
-  // Store in DB
   const { data: msg, error: msgError } = await supabase
     .from("messages")
     .insert({
@@ -43,7 +43,6 @@ export async function POST(
     return Response.json({ error: msgError.message }, { status: 500 });
   }
 
-  // Update conversation timestamp
   await supabase
     .from("conversations")
     .update({ updated_at: new Date().toISOString() })
