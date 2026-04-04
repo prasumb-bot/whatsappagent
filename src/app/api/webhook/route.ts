@@ -121,7 +121,7 @@ async function processMessage(
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
-      (business as Business)?.system_prompt
+      (business as Business)?.system_prompt,
       {
         businessId: business?.id,
         conversationId: conversation.id,
