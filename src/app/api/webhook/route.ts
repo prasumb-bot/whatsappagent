@@ -122,6 +122,11 @@ async function processMessage(
         content: m.content,
       })),
       (business as Business)?.system_prompt
+      {
+        businessId: business?.id,
+        conversationId: conversation.id,
+        patientPhone: phone,
+      }
     );
 
     // Send via that business's WhatsApp credentials
