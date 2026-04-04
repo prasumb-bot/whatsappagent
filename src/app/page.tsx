@@ -21,17 +21,31 @@ export default function Dashboard() {
 
   const selected = conversations.find((c) => c.id === selectedId);
 
+  // Auth headers — sent with every API call
+  const authHeaders = useMemo(
+    () => ({
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.NEXT_PUBLIC_DASHBOARD_TOKEN}`,
+    }),
+    []
+  );
+
   const fetchConversations = useCallback(async () => {
-    const res = await fetch("/api/conversations");
+    const res = await fetch("/api/conversations", { headers: authHeaders });
     const data = await res.json();
     setConversations(data);
-  }, []);
+  }, [authHeaders]);
 
-  const fetchMessages = useCallback(async (convoId: string) => {
-    const res = await fetch(`/api/conversations/${convoId}/messages`);
-    const data = await res.json();
-    setMessages(data);
-  }, []);
+  const fetchMessages = useCallback(
+    async (convoId: string) => {
+      const res = await fetch(`/api/conversations/${convoId}/messages`, {
+        headers: authHeaders,
+      });
+      const data = await res.json();
+      setMessages(data);
+    },
+    [authHeaders]
+  );
 
   useEffect(() => {
     fetchConversations();
@@ -80,7 +94,7 @@ export default function Dashboard() {
     const newMode = selected.mode === "agent" ? "human" : "agent";
     await fetch(`/api/conversations/${selected.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders,
       body: JSON.stringify({ mode: newMode }),
     });
     setConversations((prev) =>
@@ -93,7 +107,7 @@ export default function Dashboard() {
     setSending(true);
     await fetch(`/api/conversations/${selectedId}/send`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders,
       body: JSON.stringify({ message: input.trim() }),
     });
     setInput("");
@@ -102,7 +116,10 @@ export default function Dashboard() {
   }
 
   function formatTime(dateStr: string) {
-    return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   function getInitials(name: string | null, phone: string) {
@@ -113,18 +130,35 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-[#0f0f0f] font-sans">
       {/* Sidebar */}
-      <div className="w-[320px] flex flex-col border-r border-white/[0.06]" style={{ background: "#141414" }}>
+      <div
+        className="w-[320px] flex flex-col border-r border-white/[0.06]"
+        style={{ background: "#141414" }}
+      >
         {/* Sidebar Header */}
         <div className="px-5 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center flex-shrink-0">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </div>
             <div>
-              <h1 className="text-sm font-semibold text-white leading-tight">WhatsApp AI Agent</h1>
-              <p className="text-xs text-white/40 leading-tight mt-0.5">{conversations.length} conversation{conversations.length !== 1 ? "s" : ""}</p>
+              <h1 className="text-sm font-semibold text-white leading-tight">
+                WhatsApp AI Agent
+              </h1>
+              <p className="text-xs text-white/40 leading-tight mt-0.5">
+                {conversations.length} conversation
+                {conversations.length !== 1 ? "s" : ""}
+              </p>
             </div>
           </div>
         </div>
@@ -134,7 +168,16 @@ export default function Dashboard() {
           {conversations.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 gap-2">
               <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.3)"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
@@ -170,7 +213,9 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-0.5">
                       {convo.last_message ? (
-                        <p className="text-xs text-white/40 truncate">{convo.last_message}</p>
+                        <p className="text-xs text-white/40 truncate">
+                          {convo.last_message}
+                        </p>
                       ) : (
                         <span />
                       )}
@@ -197,19 +242,35 @@ export default function Dashboard() {
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-white/40">Select a conversation</p>
-              <p className="text-xs text-white/20 mt-1">Choose from the list to start chatting</p>
+              <p className="text-sm font-medium text-white/40">
+                Select a conversation
+              </p>
+              <p className="text-xs text-white/20 mt-1">
+                Choose from the list to start chatting
+              </p>
             </div>
           </div>
         ) : (
           <>
             {/* Chat Header */}
-            <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between" style={{ background: "#141414" }}>
+            <div
+              className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between"
+              style={{ background: "#141414" }}
+            >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center text-white text-xs font-semibold">
                   {getInitials(selected.name, selected.phone)}
@@ -218,7 +279,9 @@ export default function Dashboard() {
                   <h2 className="text-sm font-semibold text-white leading-tight">
                     {selected.name || selected.phone}
                   </h2>
-                  <p className="text-xs text-white/40 leading-tight mt-0.5">{selected.phone}</p>
+                  <p className="text-xs text-white/40 leading-tight mt-0.5">
+                    {selected.phone}
+                  </p>
                 </div>
               </div>
               <button
@@ -229,7 +292,11 @@ export default function Dashboard() {
                     : "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border border-amber-500/20"
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${selected.mode === "agent" ? "bg-emerald-400" : "bg-amber-400"}`} />
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    selected.mode === "agent" ? "bg-emerald-400" : "bg-amber-400"
+                  }`}
+                />
                 {selected.mode === "agent" ? "AI Mode" : "Human Mode"}
               </button>
             </div>
@@ -238,18 +305,25 @@ export default function Dashboard() {
             <div
               className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
               style={{
-                backgroundImage: "radial-gradient(circle at 20% 80%, rgba(16,185,129,0.03) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(16,185,129,0.02) 0%, transparent 50%)",
+                backgroundImage:
+                  "radial-gradient(circle at 20% 80%, rgba(16,185,129,0.03) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(16,185,129,0.02) 0%, transparent 50%)",
               }}
             >
               {messages.map((msg, i) => {
                 const isUser = msg.role === "user";
-                const showTime = i === messages.length - 1 || messages[i + 1]?.role !== msg.role;
+                const showTime =
+                  i === messages.length - 1 ||
+                  messages[i + 1]?.role !== msg.role;
                 return (
                   <div
                     key={msg.id}
                     className={`flex ${isUser ? "justify-start" : "justify-end"}`}
                   >
-                    <div className={`flex flex-col ${isUser ? "items-start" : "items-end"} max-w-[65%]`}>
+                    <div
+                      className={`flex flex-col ${
+                        isUser ? "items-start" : "items-end"
+                      } max-w-[65%]`}
+                    >
                       <div
                         className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                           isUser
@@ -261,7 +335,9 @@ export default function Dashboard() {
                       </div>
                       {showTime && (
                         <p className="text-[10px] text-white/25 mt-1.5 px-1">
-                          {!isUser && <span className="text-emerald-500/60 mr-1">AI ·</span>}
+                          {!isUser && (
+                            <span className="text-emerald-500/60 mr-1">AI </span>
+                          )}
                           {formatTime(msg.created_at)}
                         </p>
                       )}
@@ -273,13 +349,18 @@ export default function Dashboard() {
             </div>
 
             {/* Input Bar */}
-            <div className="px-6 py-4 border-t border-white/[0.06]" style={{ background: "#141414" }}>
+            <div
+              className="px-6 py-4 border-t border-white/[0.06]"
+              style={{ background: "#141414" }}
+            >
               <div className="flex items-center gap-3 bg-white/[0.06] rounded-xl px-4 py-2.5 border border-white/[0.06] focus-within:border-emerald-500/40 transition-colors">
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && !e.shiftKey && handleSend()
+                  }
                   placeholder="Type a message..."
                   className="flex-1 bg-transparent text-sm text-white/90 placeholder:text-white/25 focus:outline-none"
                 />
@@ -290,11 +371,30 @@ export default function Dashboard() {
                   aria-label="Send"
                 >
                   {sending ? (
-                    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      className="animate-spin"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
                   ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <line x1="22" y1="2" x2="11" y2="13" />
                       <polygon points="22 2 15 22 11 13 2 9 22 2" />
                     </svg>
