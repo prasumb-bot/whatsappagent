@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, use } from "react";
 import { createClient } from "@supabase/supabase-js";
 import type { ConversationWithLastMessage, Message } from "@/lib/types";
 
-interface BusinessSummary {
+interface BusinessInfo {
   id: string;
   name: string;
-  phone_number_id: string;
-  created_at: string;
 }
 
-export default function Dashboard() {
+export default function BusinessDashboard({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = use(params);
+
   const supabase = useMemo(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -19,8 +23,9 @@ export default function Dashboard() {
     return createClient(url, key);
   }, []);
 
-  const [businesses, setBusinesses] = useState<BusinessSummary[]>([]);
-  const [selectedBizId, setSelectedBizId] = useState<string | null>(null);
+  const [business, setBusiness] = useState<BusinessInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<ConversationWithLastMessage[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,25 +43,31 @@ export default function Dashboard() {
     []
   );
 
-  const fetchBusinesses = useCallback(async () => {
-    const res = await fetch("/api/businesses", { headers: authHeaders });
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      setBusinesses(data);
-      if (!selectedBizId && data.length > 0) {
-        setSelectedBizId(data[0].id);
+  const verifyToken = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/business-auth/${token}`);
+      if (!res.ok) {
+        setError("Invalid or expired link. Please contact support.");
+        setLoading(false);
+        return;
       }
+      const data = await res.json();
+      setBusiness(data);
+      setLoading(false);
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     }
-  }, [authHeaders, selectedBizId]);
+  }, [token]);
 
   const fetchConversations = useCallback(async () => {
-    const url = selectedBizId
-      ? `/api/conversations?business_id=${selectedBizId}`
-      : "/api/conversations";
-    const res = await fetch(url, { headers: authHeaders });
+    if (!business) return;
+    const res = await fetch(`/api/conversations?business_id=${business.id}`, {
+      headers: authHeaders,
+    });
     const data = await res.json();
     if (Array.isArray(data)) setConversations(data);
-  }, [authHeaders, selectedBizId]);
+  }, [authHeaders, business]);
 
   const fetchMessages = useCallback(
     async (convoId: string) => {
@@ -64,20 +75,18 @@ export default function Dashboard() {
         headers: authHeaders,
       });
       const data = await res.json();
-      setMessages(data);
+      if (Array.isArray(data)) setMessages(data);
     },
     [authHeaders]
   );
 
   useEffect(() => {
-    fetchBusinesses();
-  }, [fetchBusinesses]);
+    verifyToken();
+  }, [verifyToken]);
 
   useEffect(() => {
-    fetchConversations();
-    setSelectedId(null);
-    setMessages([]);
-  }, [selectedBizId, fetchConversations]);
+    if (business) fetchConversations();
+  }, [business, fetchConversations]);
 
   useEffect(() => {
     if (selectedId) fetchMessages(selectedId);
@@ -88,9 +97,9 @@ export default function Dashboard() {
   }, [messages]);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !business) return;
     const channel = supabase
-      .channel("realtime-messages")
+      .channel(`biz-${business.id}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
@@ -115,7 +124,7 @@ export default function Dashboard() {
     return () => {
       supabase?.removeChannel(channel);
     };
-  }, [selectedId, fetchConversations, supabase]);
+  }, [selectedId, business, fetchConversations, supabase]);
 
   async function toggleMode() {
     if (!selected) return;
@@ -126,7 +135,9 @@ export default function Dashboard() {
       body: JSON.stringify({ mode: newMode }),
     });
     setConversations((prev) =>
-      prev.map((c) => (c.id === selected.id ? { ...c, mode: newMode } : c))
+      prev.map((c) =>
+        c.id === selected.id ? { ...c, mode: newMode as "agent" | "human" } : c
+      )
     );
   }
 
@@ -155,32 +166,54 @@ export default function Dashboard() {
     return phone.slice(-2);
   }
 
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-[#0f0f0f] items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-white/40">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !business) {
+    return (
+      <div className="flex h-screen bg-[#0f0f0f] items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(239,68,68,0.5)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-white/60">
+            {error || "Business not found"}
+          </p>
+          <p className="text-xs text-white/30 mt-2">
+            If you think this is a mistake, contact your service provider.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-[#0f0f0f] font-sans">
-      {/* Sidebar */}
       <div
         className="w-[320px] flex flex-col border-r border-white/[0.06]"
         style={{ background: "#141414" }}
       >
-        {/* Business Selector */}
-        <div className="px-5 py-3 border-b border-white/[0.06]">
-          <select
-            value={selectedBizId || ""}
-            onChange={(e) => setSelectedBizId(e.target.value || null)}
-            className="w-full bg-white/[0.06] text-white/90 text-sm rounded-lg px-3 py-2 border border-white/[0.06] focus:outline-none focus:border-emerald-500/40"
-          >
-            <option value="" className="bg-[#141414]">
-              All Businesses
-            </option>
-            {businesses.map((biz) => (
-              <option key={biz.id} value={biz.id} className="bg-[#141414]">
-                {biz.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Sidebar Header */}
         <div className="px-5 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center flex-shrink-0">
@@ -198,17 +231,9 @@ export default function Dashboard() {
               </svg>
             </div>
             <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <h1 className="text-sm font-semibold text-white leading-tight">
-                  WhatsApp AI Agent
-                </h1>
-                <a
-                  href="/admin"
-                  className="text-[10px] px-2 py-1 rounded bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white/70 transition-colors"
-                >
-                  Admin
-                </a>
-              </div>
+              <h1 className="text-sm font-semibold text-white leading-tight">
+                {business.name}
+              </h1>
               <p className="text-xs text-white/40 leading-tight mt-0.5">
                 {conversations.length} conversation
                 {conversations.length !== 1 ? "s" : ""}
@@ -217,7 +242,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Conversation List */}
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 gap-2">
@@ -236,6 +260,9 @@ export default function Dashboard() {
                 </svg>
               </div>
               <p className="text-xs text-white/30">No conversations yet</p>
+              <p className="text-[10px] text-white/20">
+                Messages will appear here when patients text your WhatsApp
+              </p>
             </div>
           )}
           {conversations.map((convo) => {
@@ -290,7 +317,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Chat Panel */}
       <div className="flex-1 flex flex-col min-w-0">
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
@@ -313,13 +339,12 @@ export default function Dashboard() {
                 Select a conversation
               </p>
               <p className="text-xs text-white/20 mt-1">
-                Choose from the list to start chatting
+                Choose from the list to view and reply
               </p>
             </div>
           </div>
         ) : (
           <>
-            {/* Chat Header */}
             <div
               className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between"
               style={{ background: "#141414" }}
@@ -356,7 +381,6 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Messages */}
             <div
               className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
               style={{
@@ -372,9 +396,7 @@ export default function Dashboard() {
                 return (
                   <div
                     key={msg.id}
-                    className={`flex ${
-                      isUser ? "justify-start" : "justify-end"
-                    }`}
+                    className={`flex ${isUser ? "justify-start" : "justify-end"}`}
                   >
                     <div
                       className={`flex flex-col ${
@@ -394,7 +416,7 @@ export default function Dashboard() {
                         <p className="text-[10px] text-white/25 mt-1.5 px-1">
                           {!isUser && (
                             <span className="text-emerald-500/60 mr-1">
-                              AI{" "}
+                              {selected.mode === "agent" ? "AI" : "You"}{" "}
                             </span>
                           )}
                           {formatTime(msg.created_at)}
@@ -407,7 +429,6 @@ export default function Dashboard() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Bar */}
             <div
               className="px-6 py-4 border-t border-white/[0.06]"
               style={{ background: "#141414" }}

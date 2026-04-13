@@ -1,10 +1,13 @@
 import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { isAuthenticated, unauthorizedResponse } from "@/lib/auth";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAuthenticated(request)) return unauthorizedResponse();
+
   const { id } = await params;
 
   const { data: messages, error } = await supabase
